@@ -12,7 +12,7 @@ def is_enabled(value, default):
         return default
 #---------------------------------------------------------------
 #---------------------------------------------------------------         ,
-SESSION = environ.get('SESSION', 'Media_search')
+SESSION = environ.get('SESSION', 'Media_search1')
 API_ID = int(environ.get('API_ID', '28519661'))
 API_HASH = environ.get('API_HASH', 'd47c74c8a596fd3048955b322304109d')
 BOT_TOKEN = environ.get('BOT_TOKEN', '')
@@ -27,7 +27,7 @@ MULTI_FSUB = [int(channel_id) for channel_id in environ.get('MULTI_FSUB', '-1001
 #---------------------------------------------------------------
 #---------------------------------------------------------------
 DATABASE_URI = environ.get('DATABASE_URI', "mongodb+srv://majaliw856_db_user:92vUDohioe46cxmO@cluster0.54cs8yo.mongodb.net/?appName=Cluster0")
-DATABASE_NAME = environ.get('DATABASE_NAME', "SPIDEY_777")
+DATABASE_NAME = environ.get('DATABASE_NAME', "SPIDEY_official_777")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'My_Tg_files')
 
 # Multiple Database URLs for different purposes
@@ -38,11 +38,11 @@ DATABASE_URI_4 = environ.get('DATABASE_URI_4', "mongodb+srv://resultpoisonpug_db
 DATABASE_URI_5 = environ.get('DATABASE_URI_5', "mongodb+srv://blankbankedicy_db_user:sn1eKrkcvBp16GXG@cluster0.ic7pkqr.mongodb.net/?appName=Cluster0")
 
 # Database names for each URI
-DATABASE_NAME_1 = environ.get('DATABASE_NAME_1', "SPIDEY_URL_DATA")
-DATABASE_NAME_2 = environ.get('DATABASE_NAME_2', "SPIDEY_USER_DATA")
-DATABASE_NAME_3 = environ.get('DATABASE_NAME_3', "SPIDEY_FILE_STORAGE_1")
-DATABASE_NAME_4 = environ.get('DATABASE_NAME_4', "SPIDEY_FILE_STORAGE_2")
-DATABASE_NAME_5 = environ.get('DATABASE_NAME_5', "SPIDEY_FILE_STORAGE_3")
+DATABASE_NAME_1 = environ.get('DATABASE_NAME_1', "SPIDEY_URL_DATA_01")
+DATABASE_NAME_2 = environ.get('DATABASE_NAME_2', "SPIDEY_USER_DATA_01")
+DATABASE_NAME_3 = environ.get('DATABASE_NAME_3', "SPIDEY_FILE_STORAGE_01")
+DATABASE_NAME_4 = environ.get('DATABASE_NAME_4', "SPIDEY_FILE_STORAGE_02")
+DATABASE_NAME_5 = environ.get('DATABASE_NAME_5', "SPIDEY_FILE_STORAGE_03")
 #---------------------------------------------------------------
 #---------------------------------------------------------------
 #----------- There will be channel id add in all these ---------
