@@ -1,0 +1,462 @@
+from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+import requests, traceback, re, os, time, random, logging, asyncio
+import instaloader
+from info import SPIDEY_CHANNEL as DUMP_GROUP
+
+# ---------------- CONFIG ----------------
+USERNAME = os.getenv("INSTALOADER_USERNAME", "spidey_official_777")
+PASSWORD = os.getenv("INSTALOADER_PASSWORD", "Vighnya_777")  # Add password to environment variables
+SESSION_PATH = f"/data/data/com.termux/files/home/.config/instaloader/session-{USERNAME}"
+DOWNLOAD_DIR = "/tmp/insta_downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Rate limiting variables
+last_request_time = 0
+request_delay = 15  # Increased delay to avoid rate limiting
+
+# Alternative APIs
+APIS = [
+    "https://alphaapis.org/Instagram/dl/v1",
+    "https://api.rivaliq.io/instagram-downloader",
+]
+
+# Instaloader setup with better error handling
+L = None
+instaloader_available = True
+
+try:
+    L = instaloader.Instaloader(
+        dirname_pattern=DOWNLOAD_DIR,
+        download_comments=False,
+        download_geotags=False,
+        save_metadata=False,
+        post_metadata_txt_pattern="",
+        request_timeout=30,
+        max_connection_attempts=1  # Faster failure
+    )
+    
+    # Try to load or create session
+    if os.path.exists(SESSION_PATH):
+        try:
+            L.load_session_from_file(USERNAME, filename=SESSION_PATH)
+            logger.info("Instaloader session loaded successfully")
+        except Exception as e:
+            logger.warning(f"Failed to load session: {e}")
+            if PASSWORD:
+                try:
+                    L.login(USERNAME, PASSWORD)
+                    L.save_session_to_file(filename=SESSION_PATH)
+                    logger.info("Instaloader logged in and session saved")
+                except Exception as login_error:
+                    logger.error(f"Instaloader login failed: {login_error}")
+                    instaloader_available = False
+            else:
+                logger.warning("No password provided for Instaloader")
+                instaloader_available = False
+    elif PASSWORD:
+        try:
+            L.login(USERNAME, PASSWORD)
+            L.save_session_to_file(filename=SESSION_PATH)
+            logger.info("Instaloader logged in and session saved")
+        except Exception as login_error:
+            logger.error(f"Instaloader login failed: {login_error}")
+            instaloader_available = False
+    else:
+        logger.warning("No session file and no password provided for Instaloader")
+        instaloader_available = False
+        
+except Exception as e:
+    logger.error(f"Instaloader initialization failed: {e}")
+    instaloader_available = False
+# ----------------------------------------
+
+def clean_link(link: str) -> str:
+    """Remove tracking parameters from Instagram links."""
+    return re.sub(r"\?.*$", "", link).rstrip("/")
+
+def rate_limit():
+    """Enforce rate limiting to avoid Instagram blocks."""
+    global last_request_time
+    current_time = time.time()
+    elapsed = current_time - last_request_time
+    
+    if elapsed < request_delay:
+        sleep_time = request_delay - elapsed + random.uniform(1, 3)  # Add some randomness
+        time.sleep(sleep_time)
+    
+    last_request_time = time.time()
+
+async def download_and_send_video(Mbot, message, video_url, caption, buttons, progress_text=""):
+    """Download video and send it to Telegram with proper error handling."""
+    try:
+        # Download the video first
+        local_filename = os.path.join(DOWNLOAD_DIR, f"temp_{int(time.time())}_{random.randint(1000, 9999)}.mp4")
+        
+        # Show downloading status
+        status_msg = await message.reply_text(f"📥 {progress_text}Downloading video...")
+        
+        with requests.get(video_url, stream=True, timeout=60) as r:
+            r.raise_for_status()
+            total_size = int(r.headers.get('content-length', 0))
+            downloaded_size = 0
+            
+            with open(local_filename, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded_size += len(chunk)
+                        
+                        # Update progress every 5%
+                        if total_size > 0:
+                            progress = (downloaded_size / total_size) * 100
+                            if progress % 5 < 0.1:  # Update every ~5%
+                                await status_msg.edit_text(f"📥 {progress_text}Downloading... {int(progress)}%")
+        
+        await status_msg.edit_text(f"📤 {progress_text}Uploading to Telegram...")
+        
+        # Send the downloaded video
+        sent = await message.reply_video(
+            local_filename,
+            caption=caption,
+            reply_markup=buttons,
+            progress=lambda current, total: asyncio.create_task(
+                update_progress(status_msg, current, total, progress_text)
+            ) if current > 0 else None
+        )
+        
+        # Clean up
+        try:
+            os.remove(local_filename)
+        except:
+            pass
+        
+        await status_msg.delete()
+        return sent
+        
+    except Exception as e:
+        logger.error(f"Error in download_and_send_video: {e}")
+        try:
+            await status_msg.delete()
+        except:
+            pass
+        
+        # Fallback: try to send directly from URL
+        try:
+            return await message.reply_video(
+                video_url,
+                caption=caption,
+                reply_markup=buttons
+            )
+        except Exception as fallback_error:
+            logger.error(f"Fallback also failed: {fallback_error}")
+            return None
+
+async def update_progress(status_msg, current, total, progress_text):
+    """Update progress message."""
+    if total > 0:
+        progress = (current / total) * 100
+        if progress % 10 < 0.1:  # Update every ~10%
+            await status_msg.edit_text(f"📤 {progress_text}Uploading... {int(progress)}%")
+
+async def send_instagram_media(Mbot, message, data, link, index=0, total=1):
+    """Send Instagram media using Pyrogram with buttons and stats."""
+    try:
+        media = data["result"][0]
+        video_url = media.get("downloadLink")
+        
+        if not video_url:
+            await message.reply_text("❌ No downloadable media found in this post.")
+            return False
+            
+        caption = data.get("caption") or "No caption available."
+        stats = data.get("statistics") or {}
+
+        views = str(stats.get("views", 0))
+        likes = str(stats.get("likes", 0))
+        comments = str(stats.get("comments", 0))
+
+        like_cb = f"alert_like_{likes}_{int(time.time())}"
+        comment_cb = f"alert_comment_{comments}_{int(time.time())}"
+        view_cb = f"alert_view_{views}_{int(time.time())}"
+
+        buttons = InlineKeyboardMarkup(
+            [[
+                InlineKeyboardButton(f"❤️ {likes}", callback_data=like_cb),
+                InlineKeyboardButton(f"💬 {comments}", callback_data=comment_cb),
+                InlineKeyboardButton(f"👁 {views}", callback_data=view_cb)
+            ],
+            [
+                InlineKeyboardButton("⬇️ Download Again", url=video_url)
+            ]]
+        )
+
+        is_story = "story" in media.get("type", "").lower()
+        caption_text = "<b>Instagram Story</b>" if is_story else f"<b>{caption}</b>"
+        
+        # Add progress indicator for multiple downloads
+        progress_text = f"({index}/{total}) " if total > 1 else ""
+
+        # Download and send the video
+        sent = await download_and_send_video(
+            Mbot, message, video_url, 
+            f"{progress_text}{caption_text}\n\n<b>Downloaded by @Spideycinemax_ai_bot</b>",
+            buttons, progress_text
+        )
+        
+        if not sent:
+            await message.reply_text("❌ Failed to download and send the video.")
+            return False
+
+        if DUMP_GROUP:
+            try:
+                await sent.copy(DUMP_GROUP)
+            except:
+                pass
+
+            # User Info
+            user = message.from_user
+            name = user.first_name or "Unknown"
+            uname = f"@{user.username}" if user.username else "No Username"
+            user_id = user.id
+
+            user_info = (
+                f"<b>✅ New Instagram Download</b>\n\n"
+                f"<b>👤 Name:</b> {name}\n"
+                f"<b>🔗 Username:</b> {uname}\n"
+                f"<b>🆔 User ID:</b> <code>{user_id}</code>\n"
+                f"<b>🌐 Link:</b> <code>{link}</code>\n"
+                f"<b>📊 Progress:</b> {progress_text}"
+            )
+            try:
+                await Mbot.send_message(DUMP_GROUP, user_info)
+            except:
+                pass
+            
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error in send_instagram_media: {e}")
+        await message.reply_text(f"❌ Error processing media: {str(e)}")
+        return False
+
+def try_alternative_apis(clean_url):
+    """Try multiple alternative APIs for Instagram downloading."""
+    for api_url in APIS:
+        try:
+            rate_limit()
+            
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            params = {"url": clean_url}
+                
+            logger.info(f"Trying API: {api_url}")
+            response = requests.get(api_url, params=params, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") or data.get("result"):
+                    logger.info(f"Success with API: {api_url}")
+                    return data
+        except Exception as api_error:
+            logger.warning(f"API {api_url} failed: {api_error}")
+            continue
+            
+    return None
+
+async def download_with_instaloader(Mbot, message, clean_url, index=0, total=1):
+    """Download Instagram content using Instaloader with proper error handling."""
+    if not instaloader_available:
+        return False
+        
+    try:
+        rate_limit()
+        
+        # Add progress indicator for multiple downloads
+        progress_text = f"({index}/{total}) " if total > 1 else ""
+        status_msg = await message.reply_text(f"🔄 {progress_text}Processing with Instaloader...")
+        
+        if "/stories/" in clean_url or "/s/" in clean_url:
+            await status_msg.edit_text("❌ Story downloads require login. Please configure Instagram credentials.")
+            return False
+            
+        else:
+            # Post/Reel download logic
+            if "/p/" in clean_url:
+                shortcode = clean_url.split("/")[-2]
+            else:
+                shortcode = clean_url.split("/")[-1]
+            
+            try:
+                await status_msg.edit_text(f"📥 {progress_text}Downloading post...")
+                post = instaloader.Post.from_shortcode(L.context, shortcode)
+                
+                if post.is_video:
+                    video_url = post.video_url
+                    caption = post.caption or "No caption available."
+                    
+                    buttons = InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("⬇️ Download Again", url=video_url)]]
+                    )
+
+                    # Download and send the video
+                    sent = await download_and_send_video(
+                        Mbot, message, video_url,
+                        f"{progress_text}<b>{caption}</b>\n\nDownloaded by @Spideycinemax_ai_bot",
+                        buttons, progress_text
+                    )
+                    
+                    if not sent:
+                        await status_msg.edit_text("❌ Failed to download video.")
+                        return False
+                    
+                    if DUMP_GROUP:
+                        try:
+                            await sent.copy(DUMP_GROUP)
+                        except:
+                            pass
+                            
+                    await status_msg.delete()
+                    return True
+                else:
+                    # For image posts
+                    await status_msg.edit_text(f"📥 {progress_text}Downloading image...")
+                    L.download_post(post, target=DOWNLOAD_DIR)
+                    
+                    # Find the downloaded image
+                    downloaded_files = [f for f in os.listdir(DOWNLOAD_DIR) if f.startswith(shortcode) and not f.endswith('.txt')]
+                    
+                    if downloaded_files:
+                        image_path = os.path.join(DOWNLOAD_DIR, downloaded_files[0])
+                        caption = post.caption or "No caption available."
+                        
+                        await status_msg.edit_text(f"📤 {progress_text}Uploading image...")
+                        await message.reply_photo(
+                            image_path,
+                            caption=f"{progress_text}<b>{caption}</b>\n\nDownloaded by @Spideycinemax_ai_bot"
+                        )
+                        
+                        # Clean up
+                        try:
+                            os.remove(image_path)
+                        except:
+                            pass
+                        
+                        await status_msg.delete()
+                        return True
+                    else:
+                        await status_msg.edit_text("❌ Could not download the image post.")
+                        return False
+                        
+            except Exception as e:
+                await status_msg.edit_text(f"❌ Instaloader error: {str(e)}")
+                return False
+                
+    except Exception as e:
+        try:
+            await status_msg.edit_text(f"❌ Error with Instaloader: {str(e)}")
+        except:
+            pass
+        return False
+
+async def process_single_link(Mbot, message, link, index=0, total=1):
+    """Process a single Instagram link."""
+    clean_url = clean_link(link)
+    
+    # Try alternative APIs first
+    api_data = try_alternative_apis(clean_url)
+    if api_data:
+        success = await send_instagram_media(Mbot, message, api_data, link, index, total)
+        if success:
+            return True
+
+    # Fallback to Instaloader
+    success = await download_with_instaloader(Mbot, message, clean_url, index, total)
+    return success
+
+@Client.on_message(filters.regex(r'https?://.*instagram[^\s]+') & filters.incoming)
+async def link_handler(Mbot, message):
+    # Show the specific sticker for download preview
+    sticker_message = await message.reply_sticker("CAACAgUAAxkBAAITAmWEcdiJs9U2WtZXtWJlqVaI8diEAAIBAAPBJDExTOWVairA1m8eBA")
+    
+    # Extract all Instagram links from the message
+    text = message.text or message.caption
+    if not text:
+        await sticker_message.delete()
+        return
+        
+    # Find all Instagram links in the message
+    links = re.findall(r'https?://(?:www\.)?instagram\.com/(?:p|reel|stories|s)/[a-zA-Z0-9_-]+/?', text)
+    
+    if not links:
+        await sticker_message.delete()
+        await message.reply_text("❌ No valid Instagram links found.")
+        return
+        
+    successful_downloads = 0
+    failed_downloads = 0
+    
+    # Process each link
+    for i, link in enumerate(links, 1):
+        try:
+            # Process the link
+            success = await process_single_link(Mbot, message, link, i, len(links))
+            
+            if success:
+                successful_downloads += 1
+            else:
+                failed_downloads += 1
+                
+            # Add a small delay between processing links to avoid rate limiting
+            if i < len(links):
+                await asyncio.sleep(3)
+                
+        except Exception as e:
+            logger.error(f"Error processing link {link}: {e}")
+            failed_downloads += 1
+    
+    # Delete the sticker after processing
+    await sticker_message.delete()
+    
+    # Send final status message if multiple links
+    if len(links) > 1:
+        if successful_downloads > 0:
+            status_msg = await message.reply_text(
+                f"✅ <b>Download Completed!</b>\n\n"
+                f"📊 <b>Results:</b>\n"
+                f"• ✅ Successful: {successful_downloads}\n"
+                f"• ❌ Failed: {failed_downloads}\n\n"
+                f"<i>Note: Some downloads may fail due to private content or Instagram restrictions.</i>"
+            )
+            # Auto-delete status message after 10 seconds
+            await asyncio.sleep(10)
+            await status_msg.delete()
+        else:
+            status_msg = await message.reply_text(
+                "❌ <b>All downloads failed!</b>\n\n"
+                "This could be due to:\n"
+                "• Private account content\n"
+                "• Rate limiting by Instagram\n"
+                "• Temporary service issues\n\n"
+                "Please try again later or try different posts."
+            )
+            # Auto-delete status message after 10 seconds
+            await asyncio.sleep(10)
+            await status_msg.delete()
+
+# Callback for stats
+@Client.on_callback_query(filters.regex("^alert_"))
+async def insta_callback_handler(client: Client, callback_query: CallbackQuery):
+    data = callback_query.data
+    if "like" in data:
+        count = data.split('_')[2]
+        await callback_query.answer(f"❤️ Likes: {count}", show_alert=True)
+    elif "comment" in data:
+        count = data.split('_')[2]
+        await callback_query.answer(f"💬 Comments: {count}", show_alert=True)
+    elif "view" in data:
+        count = data.split('_')[2]
+        await callback_query.answer(f"👁 Views: {count}", show_alert=True)
