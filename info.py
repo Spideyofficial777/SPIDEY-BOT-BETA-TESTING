@@ -158,7 +158,7 @@ if 'DYNO' in environ:
     ON_HEROKU = True
 else:
     ON_HEROKU = False
-URL = environ.get("FQDN", "https://similar-celisse-officialxspideyz-c55a14f1.koyeb.app/")
+URL = environ.get("FQDN", "https://spidey-bot-beta-version.onrender.com/")
 
 #---------------------------------------------------------------
 #---------------------------------------------------------------
