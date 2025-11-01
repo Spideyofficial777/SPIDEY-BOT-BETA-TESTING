@@ -12,7 +12,7 @@ def is_enabled(value, default):
         return default
 #---------------------------------------------------------------
 #---------------------------------------------------------------         ,
-SESSION = environ.get('SESSION', 'Media_search1')
+SESSION = environ.get('SESSION', 'Media_search')
 API_ID = int(environ.get('API_ID', '28519661'))
 API_HASH = environ.get('API_HASH', 'd47c74c8a596fd3048955b322304109d')
 BOT_TOKEN = environ.get('BOT_TOKEN', '')
@@ -27,7 +27,7 @@ MULTI_FSUB = [int(channel_id) for channel_id in environ.get('MULTI_FSUB', '-1001
 #---------------------------------------------------------------
 #---------------------------------------------------------------
 DATABASE_URI = environ.get('DATABASE_URI', "mongodb+srv://majaliw856_db_user:92vUDohioe46cxmO@cluster0.54cs8yo.mongodb.net/?appName=Cluster0")
-DATABASE_NAME = environ.get('DATABASE_NAME', "SPIDEY_official_777")
+DATABASE_NAME = environ.get('DATABASE_NAME', "SPIDEY_777")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'My_Tg_files')
 
 # Multiple Database URLs for different purposes
@@ -38,11 +38,11 @@ DATABASE_URI_4 = environ.get('DATABASE_URI_4', "mongodb+srv://resultpoisonpug_db
 DATABASE_URI_5 = environ.get('DATABASE_URI_5', "mongodb+srv://blankbankedicy_db_user:sn1eKrkcvBp16GXG@cluster0.ic7pkqr.mongodb.net/?appName=Cluster0")
 
 # Database names for each URI
-DATABASE_NAME_1 = environ.get('DATABASE_NAME_1', "SPIDEY_URL_DATA_01")
-DATABASE_NAME_2 = environ.get('DATABASE_NAME_2', "SPIDEY_USER_DATA_01")
-DATABASE_NAME_3 = environ.get('DATABASE_NAME_3', "SPIDEY_FILE_STORAGE_01")
-DATABASE_NAME_4 = environ.get('DATABASE_NAME_4', "SPIDEY_FILE_STORAGE_02")
-DATABASE_NAME_5 = environ.get('DATABASE_NAME_5', "SPIDEY_FILE_STORAGE_03")
+DATABASE_NAME_1 = environ.get('DATABASE_NAME_1', "SPIDEY_URL_DATA")
+DATABASE_NAME_2 = environ.get('DATABASE_NAME_2', "SPIDEY_USER_DATA")
+DATABASE_NAME_3 = environ.get('DATABASE_NAME_3', "SPIDEY_FILE_STORAGE_1")
+DATABASE_NAME_4 = environ.get('DATABASE_NAME_4', "SPIDEY_FILE_STORAGE_2")
+DATABASE_NAME_5 = environ.get('DATABASE_NAME_5', "SPIDEY_FILE_STORAGE_3")
 #---------------------------------------------------------------
 #---------------------------------------------------------------
 #----------- There will be channel id add in all these ---------
@@ -74,12 +74,12 @@ TUTORIAL = environ.get("TUTORIAL", "https://t.me/SPIDEYOFFICIAL_777/12")
 TUTORIAL_2 = environ.get("TUTORIAL_2", "https://t.me/spideyofficial_777")
 TUTORIAL_3 = environ.get("TUTORIAL_3", "https://t.me/spideyofficial_777")
 VERIFY_IMG = environ.get("VERIFY_IMG", "https://graph.org/file/1669ab9af68eaa62c3ca4.jpg")
-SHORTENER_API = environ.get("SHORTENER_API", "09c3f9bc3a8b121b1e6b82a954e59da523dd188e")
-SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", 'shortxlinks.com')
+SHORTENER_API = environ.get("SHORTENER_API", "682f112be1da2ffea64fd448ea803f56fb62ebaa")
+SHORTENER_WEBSITE = environ.get("SHORTENER_WEBSITE", 'inshorturl.com')
 SHORTENER_API2 = environ.get("SHORTENER_API2", "fb30c8d0baba3d820e2fb4576f8ea96df7ca04da")
 SHORTENER_WEBSITE2 = environ.get("SHORTENER_WEBSITE2", 'api.modijiurl.com')
-SHORTENER_API3 = environ.get("SHORTENER_API3", "682f112be1da2ffea64fd448ea803f56fb62ebaa")
-SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", 'inshorturl.com')
+SHORTENER_API3 = environ.get("SHORTENER_API3", "")
+SHORTENER_WEBSITE3 = environ.get("SHORTENER_WEBSITE3", '')
 TWO_VERIFY_GAP = int(environ.get('TWO_VERIFY_GAP', "14400"))
 THREE_VERIFY_GAP = int(environ.get('THREE_VERIFY_GAP', "14400"))
 #---------------------------------------------------------------
@@ -158,7 +158,7 @@ if 'DYNO' in environ:
     ON_HEROKU = True
 else:
     ON_HEROKU = False
-URL = environ.get("FQDN", "https://spidey-bot-beta-version.onrender.com/")
+URL = environ.get("FQDN", "https://similar-celisse-officialxspideyz-c55a14f1.koyeb.app/")
 
 #---------------------------------------------------------------
 #---------------------------------------------------------------

@@ -4,6 +4,7 @@ from info import *
 from pyrogram import Client
 from Spidey.util.config_parser import TokenParser
 from . import multi_clients, work_loads, SpideyBot
+from Spidey.server.guards import install_verification_gate
 
 
 async def initialize_clients():
@@ -29,6 +30,7 @@ async def initialize_clients():
                 no_updates=True,
                 in_memory=True
             ).start()
+            install_verification_gate(client)
             work_loads[client_id] = 0
             return client_id, client
         except Exception:

@@ -21,6 +21,7 @@ from aiohttp import web
 
 from pyrogram import Client
 from info import *
+from Spidey.server.guards import install_verification_gate
 
 
 class SpideyxBot(Client):
@@ -35,6 +36,11 @@ class SpideyxBot(Client):
             plugins={"root": "plugins"},
             sleep_threshold=5,
         )
+    async def start(self):
+        self = await super().start()
+        # Install verification gate so all sends are guarded
+        install_verification_gate(self)
+        return self
     async def iter_messages(
         self,
         chat_id: Union[int, str],
